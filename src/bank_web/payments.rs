@@ -12,7 +12,7 @@ use crate::bank::{
     payment_instruments::Card,
     payments::{self, Status},
 };
-use crate::errors::{CustomError, PaymentError};
+use crate::errors::PaymentError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct RequestData {

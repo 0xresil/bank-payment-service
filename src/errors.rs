@@ -1,37 +1,7 @@
-use crate::bank::{payment_instruments::CardError, payments::Status};
 use axum::http::StatusCode;
 use std::fmt::Display;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum CustomError {
-    #[error("Unauthorized")]
-    Unauthorized {},
-
-    #[error("{0}")]
-    Sql(#[from] sqlx::Error),
-
-    #[error("{0}")]
-    CardError(#[from] CardError),
-
-    // #[error("PaymentRequired {code} {message}")]
-    // PaymentRequired { code: i32, message: String },
-    // #[error("InvalidAmountInvalidAmount {code} {message}")]
-    // InvalidAmount { code: i32, message: String },
-    // #[error("PaymentRequired {code} {message}")]
-    // ZeroAmoutTransfre { code: i32, message: String },
-    #[error("InValidCard {code} {message}")]
-    InValidCard { code: i32, message: String },
-
-    #[error("AmoutExcRefundFailed {code} {message}")]
-    AmoutRefundFailed { code: i32, message: String },
-
-    #[error("PaymentNotExist {code} {message}")]
-    PaymentNotExist { code: i32, message: String },
-
-    #[error("Payment Error {0}")]
-    PaymentError(PaymentError),
-}
+use crate::bank::payments::Status;
 
 #[derive(Debug)]
 pub struct PaymentError {

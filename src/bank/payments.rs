@@ -3,8 +3,6 @@ use sqlx::PgPool;
 use time::PrimitiveDateTime;
 use uuid::Uuid;
 
-use super::{accounts::DummyService, payment_instruments::Card};
-use crate::{bank::accounts::AccountService, CustomError, PaymentError};
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Serialize, Deserialize, sqlx::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum Status {
@@ -72,15 +70,12 @@ pub mod tests {
     pub const PAYMENT_STATUS: Status = Status::Approved;
 
     impl Payment {
-        pub async fn new_test(pool: &PgPool) -> Result<Payment, CustomError> {
+        pub async fn new_test(pool: &PgPool) -> Result<Payment, sqlx::Error> {
             let card = Card::new_test();
 
             let id = insert(pool, PAYMENT_AMOUNT, card.into(), PAYMENT_STATUS).await?;
 
-            match get(pool, id).await {
-                Ok(x) => Ok(x),
-                Err(e) => Err(CustomError::from(e)),
-            }
+            get(pool, id).await
         }
     }
 

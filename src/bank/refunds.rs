@@ -52,34 +52,31 @@ pub async fn get(pool: &PgPool, id: Uuid) -> Result<Refund, sqlx::Error> {
 pub async fn get_sum(pool: &PgPool, payment_id: Uuid) -> Result<Option<i64>, sqlx::Error> {
     sqlx::query!(
         r#"
-          SELECT SUM(amount) FROM refunds
-          WHERE payment_id = $1 GROUP BY payment_id
-      "#,
+            SELECT SUM(amount) sum FROM refunds
+            WHERE payment_id = $1 GROUP BY payment_id
+        "#,
         payment_id
     )
-    .fetch_one(pool)
+    .fetch_optional(pool)
     .await
-    .map(|record| record.sum)
+    .map(|record| if let Some(r) = record { r.sum } else { Some(0) })
 }
 
 #[cfg(test)]
 pub mod tests {
 
     use super::*;
-    use crate::{bank::payments::Payment, CustomError};
+    use crate::bank::payments::Payment;
 
     pub const REFUND_AMOUNT: i32 = 42;
 
     impl Refund {
-        pub async fn new_test(pool: &PgPool) -> Result<Refund, CustomError> {
+        pub async fn new_test(pool: &PgPool) -> Result<Refund, sqlx::Error> {
             let payment = Payment::new_test(pool).await?;
 
             let id = insert(pool, payment.id, REFUND_AMOUNT).await?;
 
-            match get(pool, id).await {
-                Ok(x) => Ok(x),
-                Err(e) => Err(CustomError::from(e)),
-            }
+            get(pool, id).await
         }
     }
 

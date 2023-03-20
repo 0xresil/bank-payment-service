@@ -60,11 +60,9 @@ pub async fn post<T: AccountService>(
     let payment_result = crate::bank::payments::get(&bank_web.pool, payment_id)
         .await
         .ok();
-    println!("paymetn res {:?}", payment_result);
 
     let payment = if let Some(p) = payment_result {
-        println!("status res {} {}", p.status as u8, Status::Approved as u8);
-        if p.status as u8 != Status::Approved as u8 {
+        if p.status != Status::Approved {
             return Err((
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponseBody::new("has a status other than approved")),
@@ -86,18 +84,17 @@ pub async fn post<T: AccountService>(
         ))
     )
     .unwrap_or(0);
-    println!("refunds_sum {:?}", refunds_sum);
+
     let total = refunds_sum
         .checked_add(body.refund.amount as i64)
         .unwrap_or(0);
     if total == 0 || total > payment.amount as i64 {
         return Err((
             StatusCode::UNPROCESSABLE_ENTITY,
-            Json(ErrorResponseBody::new("refund with excessive amount")),
+            Json(ErrorResponseBody::new("excessive refund amount requested")),
         ));
     }
 
-    println!("total {:?}", total);
     let refund_id = unwrap_or_return!(
         refunds::insert(&bank_web.pool, payment_id, body.refund.amount).await,
         Err((
