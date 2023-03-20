@@ -1,0 +1,27 @@
+services:
+  postgres:
+    container_name: postgres
+    image: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 1s
+      timeout: 1s
+      retries: 120
+    ports:
+      - 5432:5432
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.39
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+
+volumes:
+  postgres-data: {}

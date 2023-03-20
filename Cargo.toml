@@ -1,0 +1,33 @@
+[package]
+name = "hiring_challenge_rust"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = "0.1.64"
+axum = "0.6.6"
+axum-macros = "0.3.4"
+axum-tracing-opentelemetry = "0.9.0"
+dotenvy = "0.15.6"
+futures = "0.3.26"
+http-body = "0.4.5"
+hyper = { version = "0.14.24", features = ["client"] }
+opentelemetry = "0.18.0"
+opentelemetry-otlp = "0.11.0"
+rand = "0.8.5"
+serde = "1.0.152"
+serde_json = "1.0.93"
+sqlx = { version = "0.6.2", features = ["postgres", "runtime-tokio-rustls", "time", "uuid"] }
+thiserror = "1.0.40"
+time = { version = "0.3.18", features = ["serde"] }
+tokio = { version = "1.25.0", features = ["macros"] }
+tower = "0.4.13"
+tracing = "0.1.37"
+tracing-opentelemetry = "0.18.0"
+tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+uuid = { version = "1.3.0", features = ["serde", "v4"] }
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3
