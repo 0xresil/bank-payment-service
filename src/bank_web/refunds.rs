@@ -25,6 +25,7 @@ pub struct ResponseData {
     amount: i32,
     payment_id: Uuid,
 }
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ResponseBody {
     data: ResponseData,

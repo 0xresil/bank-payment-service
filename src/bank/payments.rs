@@ -49,15 +49,15 @@ pub async fn insert(
 
 pub async fn get(pool: &PgPool, id: Uuid) -> Result<Payment, sqlx::Error> {
     sqlx::query_as!(
-        Payment,
-        r#"
-            SELECT id, amount, card_number, inserted_at, updated_at, status as "status: _"  FROM payments
-            WHERE id = $1
-        "#,
-        id
-    )
-    .fetch_one(pool)
-    .await
+            Payment,
+            r#"
+                SELECT id, amount, card_number, inserted_at, updated_at, status as "status: _"  FROM payments
+                WHERE id = $1
+            "#,
+            id
+        )
+        .fetch_one(pool)
+        .await
 }
 
 #[cfg(test)]

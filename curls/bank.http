@@ -1,0 +1,7 @@
+@url = http://127.0.0.1:4000/api/
+
+### add payment
+POST {{url}}payments/ HTTP/1.1
+Content-Type: application/json
+
+{"amount": 2000, "card_number": 123456789012345}
