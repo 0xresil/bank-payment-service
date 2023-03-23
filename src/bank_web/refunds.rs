@@ -57,19 +57,20 @@ pub async fn post<T: AccountService>(
     Path(payment_id): Path<Uuid>,
     Json(body): Json<RequestBody>,
 ) -> Result<(StatusCode, Json<ResponseBody>), (StatusCode, Json<ErrorResponseBody>)> {
+    // body.refund.amount
+
     // Gettting the payment details from payment table
     let payment_result = crate::bank::payments::get(&bank_web.pool, payment_id)
         .await
         .ok();
 
-    let payment = if let Some(p) = payment_result {
+    if let Some(p) = payment_result {
         if p.status != Status::Approved {
             return Err((
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponseBody::new("has a status other than approved")),
             ));
         }
-        p
     } else {
         return Err((
             StatusCode::NOT_FOUND,
@@ -77,27 +78,8 @@ pub async fn post<T: AccountService>(
         ));
     };
 
-    let refunds_sum = unwrap_or_return!(
-        refunds::get_sum(&bank_web.pool, payment_id).await,
-        Err((
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponseBody::new("can't get sum of refunds")),
-        ))
-    )
-    .unwrap_or(0);
-
-    let total = refunds_sum
-        .checked_add(body.refund.amount as i64)
-        .unwrap_or(0);
-    if total == 0 || total > payment.amount as i64 {
-        return Err((
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Json(ErrorResponseBody::new("excessive refund amount requested")),
-        ));
-    }
-
     let refund_id = unwrap_or_return!(
-        refunds::insert(&bank_web.pool, payment_id, body.refund.amount).await,
+        refunds::checked_insert(&bank_web.pool, payment_id, body.refund.amount).await,
         Err((
             StatusCode::NOT_FOUND,
             Json(ErrorResponseBody::new(
@@ -106,10 +88,21 @@ pub async fn post<T: AccountService>(
         ))
     );
 
-    Ok((
-        StatusCode::CREATED,
-        Json(ResponseBody::new(refund_id, body.refund.amount, payment_id)),
-    ))
+    if refund_id.is_none() {
+        Err((
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(ErrorResponseBody::new("excessive refund amount requested")),
+        ))
+    } else {
+        Ok((
+            StatusCode::CREATED,
+            Json(ResponseBody::new(
+                refund_id.unwrap(),
+                body.refund.amount,
+                payment_id,
+            )),
+        ))
+    }
 }
 
 pub async fn get<T: AccountService>(
@@ -154,6 +147,41 @@ mod tests {
         (router, response_body)
     }
 
+    async fn request_refund(router: axum::Router, payment_id: Uuid) -> StatusCode {
+        let request_body = RequestBody {
+            refund: RequestData { amount: 1205 },
+        };
+
+        let uri = format!("/api/payments/{payment_id}/refunds",);
+        let response = post(&router, uri, &request_body).await;
+        response.status()
+    }
+
+    #[tokio::test]
+    async fn should_handle_concurrent_refunds() {
+        let router = BankWeb::new_test().await.into_router();
+
+        let request_body = payments::RequestBody {
+            payment: payments::RequestData {
+                amount: 1205,
+                card_number: Card::new_test().into(),
+            },
+        };
+
+        let response = post(&router, "/api/payments", &request_body).await;
+        assert_eq!(response.status(), 201);
+
+        let response_body = deserialize_response_body::<payments::ResponseBody>(response).await;
+        let payment_id = response_body.data.id;
+
+        let fut_a = request_refund(router.clone(), payment_id);
+        let fut_b = request_refund(router, payment_id);
+        let (status_a, status_b) = tokio::join!(fut_a, fut_b);
+
+        assert_eq!(status_a.min(status_b), 201, "one refund should succeed");
+        assert_eq!(status_a.max(status_b), 422, "one refund should fail");
+    }
+
     #[tokio::test]
     async fn should_refund_valid_amount() {
         let (router, payment_response_body) = setup().await;
@@ -164,7 +192,7 @@ mod tests {
         };
 
         let uri = format!("/api/payments/{payment_id}/refunds",);
-        let response = post(&router, uri, &request_body).await;
+        let response = post(&router, uri.to_string(), &request_body).await;
         assert_eq!(response.status(), 201);
 
         let response_body = deserialize_response_body::<ResponseBody>(response).await;

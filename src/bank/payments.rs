@@ -47,6 +47,17 @@ pub async fn insert(
     .map(|record| record.id)
 }
 
+pub async fn update(pool: &PgPool, id: Uuid, status: Status) -> Result<Uuid, sqlx::Error> {
+    sqlx::query!(
+        r#"UPDATE payments SET status = $2 WHERE id = $1 RETURNING id"#,
+        id,
+        status as Status
+    )
+    .fetch_one(pool)
+    .await
+    .map(|record| record.id)
+}
+
 pub async fn get(pool: &PgPool, id: Uuid) -> Result<Payment, sqlx::Error> {
     sqlx::query_as!(
             Payment,

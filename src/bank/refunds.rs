@@ -49,17 +49,38 @@ pub async fn get(pool: &PgPool, id: Uuid) -> Result<Refund, sqlx::Error> {
     .await
 }
 
-pub async fn get_sum(pool: &PgPool, payment_id: Uuid) -> Result<Option<i64>, sqlx::Error> {
+pub async fn checked_insert(
+    pool: &PgPool,
+    payment_id: Uuid,
+    refund_amount: i32,
+) -> Result<Option<Uuid>, sqlx::Error> {
     sqlx::query!(
         r#"
-            SELECT SUM(amount) sum FROM refunds
-            WHERE payment_id = $1 GROUP BY payment_id
+          INSERT into refunds ( payment_id, amount )
+          SELECT $1, $2
+          WHERE EXISTS (
+            SELECT ( t2.amount - SUM(t1.amount) ) 
+            FROM refunds t1 
+            JOIN payments t2 on t1.payment_id = t2.id 
+            WHERE t1.payment_id = $1 
+            GROUP BY t1.payment_id, t2.amount
+            HAVING t2.amount - SUM(t1.amount) >= $2::integer
+          ) OR (
+            NOT EXISTS (
+              SELECT * FROM refunds WHERE payment_id = $1
+            )
+            AND EXISTS (
+              SELECT * FROM payments WHERE id = $1 AND amount >= $2
+            )
+          )
+          RETURNING id
         "#,
-        payment_id
+        payment_id,
+        refund_amount
     )
     .fetch_optional(pool)
     .await
-    .map(|record| if let Some(r) = record { r.sum } else { Some(0) })
+    .map(|record| record.map(|r| r.id))
 }
 
 #[cfg(test)]

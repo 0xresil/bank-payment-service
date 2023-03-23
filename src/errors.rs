@@ -30,6 +30,7 @@ impl PaymentError {
             "invalid_account_number" => (403, "Forbidden"),
             "invalid_amount" => (400, "Bad Request"),
             "insufficient_funds" => (402, "Payment Required"),
+            "service_unavailable" => (503, "Service unavailable"),
             _ => (500, "Internal Error"),
         };
         PaymentError {
